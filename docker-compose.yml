@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # Microservicio Backend (Express + TypeScript)
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: erp-backend-microservice
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - CORS_ORIGIN=http://localhost:3000
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - erp-network
+
+  # ==========================================
+  # Frontend Cliente (Next.js Standalone)
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:4000
+    container_name: erp-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - BACKEND_INTERNAL_URL=http://backend:4000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - erp-network
+
+# Red interna compartida para comunicación entre contenedores
+networks:
+  erp-network:
+    driver: bridge
