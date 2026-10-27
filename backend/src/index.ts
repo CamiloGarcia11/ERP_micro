@@ -5,6 +5,9 @@ import authRoutes from './modules/auth/auth.routes';
 import inventoryRoutes from './modules/inventory/inventory.routes';
 import salesRoutes from './modules/sales/sales.routes';
 import analyticsRoutes from './modules/analytics/analytics.routes';
+import crmRoutes from './modules/crm/crm.routes';
+import eventsRoutes from './events/events.routes';
+import { eventBus } from './events/event-bus';
 
 dotenv.config();
 
@@ -21,12 +24,30 @@ app.use(
 );
 app.use(express.json());
 
-// Request logger
+// Request logger & Sync Event Recorder
 app.use((req: Request, _res: Response, next: NextFunction) => {
   const start = Date.now();
   _res.on('finish', () => {
     const duration = Date.now() - start;
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${_res.statusCode} - ${duration}ms`);
+
+    // Registrar llamadas síncronas cliente-servidor (excluyendo el polling del monitor de eventos)
+    if (
+      !req.originalUrl.startsWith('/api/events') &&
+      !req.originalUrl.includes('health') &&
+      !req.originalUrl.includes('analytics/summary')
+    ) {
+      eventBus.addEvent({
+        type: 'SYNC',
+        channel: 'HTTP / REST (Bloqueante)',
+        name: `${req.method} ${req.originalUrl}`,
+        source: 'Frontend Client (:3000)',
+        target: 'API Microservice (:4000)',
+        details: `Llamada REST síncrona finalizada con status ${_res.statusCode}. El cliente esperó la respuesta.`,
+        latencyMs: duration,
+        status: _res.statusCode < 400 ? 'SUCCESS' : 'ERROR',
+      });
+    }
   });
   next();
 });
@@ -50,6 +71,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/crm', crmRoutes);
+app.use('/api/events', eventsRoutes);
 
 // 404 Handler (RFC 7807)
 app.use((req: Request, res: Response) => {
@@ -82,6 +105,7 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 ERP Backend Microservice activo en:`);
   console.log(`👉 http://localhost:${PORT}`);
   console.log(`👉 Healthcheck: http://localhost:${PORT}/health`);
+  console.log(`👉 Event Monitor API: http://localhost:${PORT}/api/events`);
   console.log(`👉 Entorno: ${process.env.NODE_ENV || 'development'}`);
   console.log(`=========================================`);
 });

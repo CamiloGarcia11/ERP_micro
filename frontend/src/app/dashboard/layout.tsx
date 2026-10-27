@@ -8,7 +8,9 @@ import {
   LayoutDashboard,
   Boxes,
   ShoppingCart,
+  Users,
   BarChart3,
+  Activity,
   LogOut,
   Layers,
 } from 'lucide-react';
@@ -18,7 +20,9 @@ const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'ACCOUNTANT', 'OPERATOR'] as UserRole[] },
   { href: '/dashboard/inventory', label: 'Inventario & Stock', icon: Boxes, roles: ['ADMIN', 'OPERATOR', 'ACCOUNTANT'] as UserRole[] },
   { href: '/dashboard/sales', label: 'Ventas & Pedidos', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR', 'ACCOUNTANT'] as UserRole[] },
+  { href: '/dashboard/crm', label: 'CRM & Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR', 'ACCOUNTANT'] as UserRole[] },
   { href: '/dashboard/analytics', label: 'Analítica & KPIs', icon: BarChart3, roles: ['ADMIN', 'ACCOUNTANT'] as UserRole[] },
+  { href: '/dashboard/events', label: 'Monitor de Eventos', icon: Activity, roles: ['ADMIN', 'OPERATOR', 'ACCOUNTANT'] as UserRole[] },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

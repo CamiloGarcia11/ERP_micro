@@ -52,6 +52,7 @@ export interface OrderItemDto {
 export interface OrderDto {
   id: string;
   orderNumber: string;
+  customerId?: string;
   customerName: string;
   customerDocument: string;
   status: string;
@@ -67,6 +68,7 @@ export interface OrderDto {
 }
 
 export interface CreateOrderDto {
+  customerId?: string;
   customerName: string;
   customerDocument: string;
   paymentMethod: string;
@@ -76,6 +78,92 @@ export interface CreateOrderDto {
     unitPrice: number;
   }>;
   notes?: string;
+}
+
+// CRM Module Types
+export type CustomerType = 'COMPANY' | 'INDIVIDUAL';
+export type CustomerStatus = 'ACTIVE' | 'LEAD' | 'INACTIVE';
+
+export interface CustomerDto {
+  id: string;
+  code: string;
+  name: string;
+  document: string;
+  email: string;
+  phone: string;
+  address?: string;
+  city?: string;
+  type: CustomerType;
+  status: CustomerStatus;
+  notes?: string;
+  totalOrders?: number;
+  totalSpent?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCustomerDto {
+  name: string;
+  document: string;
+  email: string;
+  phone: string;
+  address?: string;
+  city?: string;
+  type: CustomerType;
+  status?: CustomerStatus;
+  notes?: string;
+}
+
+export interface UpdateCustomerDto {
+  name?: string;
+  document?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  type?: CustomerType;
+  status?: CustomerStatus;
+  notes?: string;
+}
+
+// Analytics Module Types
+export type AnalyticsPeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'all';
+
+export interface AnalyticsBreakdownItem {
+  label: string;
+  revenue: number;
+  ordersCount: number;
+}
+
+export interface TopProductItem {
+  id: string;
+  name: string;
+  category: string;
+  unitsSold: number;
+  revenue: number;
+}
+
+export interface AnalyticsSummaryDto {
+  period: AnalyticsPeriod;
+  periodLabel: string;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  totalOrders: number;
+  totalRevenue: number;
+  totalUnitsSold: number;
+  averageTicket: number;
+  breakdown: AnalyticsBreakdownItem[];
+  topProducts: TopProductItem[];
+  recentSales: Array<{
+    id: string;
+    orderNumber: string;
+    customerName: string;
+    totalAmount: number;
+    itemCount: number;
+    processedAt: string;
+  }>;
 }
 
 export interface ApiResponse<T> {
@@ -91,5 +179,22 @@ export interface ProblemDetails {
   status: number;
   detail: string;
   instance: string;
+  timestamp: string;
+}
+
+
+// Event Monitoring Types (Synchronous vs Asynchronous)
+export type EventType = 'SYNC' | 'ASYNC';
+
+export interface SystemEventDto {
+  id: string;
+  type: EventType;
+  channel: string;
+  name: string;
+  source: string;
+  target: string;
+  details: string;
+  latencyMs?: number;
+  status: 'SUCCESS' | 'PROCESSED' | 'PENDING' | 'ERROR';
   timestamp: string;
 }

@@ -3,14 +3,15 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { OrderDto, CreateOrderDto, ProductDto } from '@/types/erp.types';
-import { ShoppingCart, Plus, RefreshCw, FileText, CheckCircle2, Zap } from 'lucide-react';
+import { OrderDto, CreateOrderDto, ProductDto, CustomerDto } from '@/types/erp.types';
+import { ShoppingCart, Plus, RefreshCw, FileText, CheckCircle2, UserCheck } from 'lucide-react';
 
 export default function SalesPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Form state
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('manual');
   const [customerName, setCustomerName] = useState('');
   const [customerDocument, setCustomerDocument] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
@@ -34,6 +35,14 @@ export default function SalesPage() {
     },
   });
 
+  const { data: customers } = useQuery<CustomerDto[]>({
+    queryKey: ['customers'],
+    queryFn: async () => {
+      const res = await apiClient<CustomerDto[]>('/api/crm/customers');
+      return res.data;
+    },
+  });
+
   const createOrderMutation = useMutation({
     mutationFn: async (dto: CreateOrderDto) => {
       return apiClient<OrderDto>('/api/sales/orders', {
@@ -44,13 +53,30 @@ export default function SalesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
       setIsModalOpen(false);
       setCustomerName('');
       setCustomerDocument('');
+      setSelectedCustomerId('manual');
       setQuantity(1);
+      setNotes('');
     },
   });
+
+  const handleCustomerSelect = (id: string) => {
+    setSelectedCustomerId(id);
+    if (id === 'manual') {
+      setCustomerName('');
+      setCustomerDocument('');
+    } else {
+      const found = customers?.find((c) => c.id === id);
+      if (found) {
+        setCustomerName(found.name);
+        setCustomerDocument(found.document);
+      }
+    }
+  };
 
   const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +84,7 @@ export default function SalesPage() {
     if (!product) return;
 
     const dto: CreateOrderDto = {
+      customerId: selectedCustomerId !== 'manual' ? selectedCustomerId : undefined,
       customerName,
       customerDocument,
       paymentMethod,
@@ -84,7 +111,7 @@ export default function SalesPage() {
             <span>Ventas & Emisión de Pedidos</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Procesamiento de facturas y actualización automática de stock
+            Procesamiento de facturas, vinculación con CRM y actualización automática de stock
           </p>
         </div>
 
@@ -92,6 +119,7 @@ export default function SalesPage() {
           <button
             onClick={() => refetch()}
             className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition"
+            title="Refrescar órdenes"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -123,7 +151,7 @@ export default function SalesPage() {
               <thead className="bg-slate-950/70 border-b border-slate-800 text-xs uppercase tracking-wider text-slate-400">
                 <tr>
                   <th className="py-3.5 px-6">Nº Orden</th>
-                  <th className="py-3.5 px-6">Cliente</th>
+                  <th className="py-3.5 px-6">Cliente (CRM)</th>
                   <th className="py-3.5 px-6">Método de Pago</th>
                   <th className="py-3.5 px-6 text-right">Subtotal</th>
                   <th className="py-3.5 px-6 text-right">Total (IGV 18%)</th>
@@ -139,7 +167,14 @@ export default function SalesPage() {
                       <span>{order.orderNumber}</span>
                     </td>
                     <td className="py-4 px-6">
-                      <div className="font-semibold text-white">{order.customerName}</div>
+                      <div className="font-semibold text-white flex items-center gap-1.5">
+                        <span>{order.customerName}</span>
+                        {order.customerId && (
+                          <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-1.5 py-0.2 rounded font-mono">
+                            CRM
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-slate-500 font-mono">{order.customerDocument}</div>
                     </td>
                     <td className="py-4 px-6">
@@ -172,8 +207,30 @@ export default function SalesPage() {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
             <h2 className="text-lg font-bold text-white mb-4">Emitir Nueva Orden de Venta</h2>
             <form onSubmit={handleCreateOrder} className="space-y-4">
+              {/* Select Customer from CRM */}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Nombre del Cliente</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1 flex items-center justify-between">
+                  <span>Vincular con Cliente (Módulo CRM)</span>
+                  <span className="text-[10px] text-cyan-400 font-normal">Autocompleta datos fiscales</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedCustomerId}
+                    onChange={(e) => handleCustomerSelect(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="manual">-- Ingreso Manual / Consumidor Final --</option>
+                    {customers?.map((cust) => (
+                      <option key={cust.id} value={cust.id}>
+                        {cust.code} - {cust.name} ({cust.document})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">Nombre del Cliente / Razón Social</label>
                 <input
                   type="text"
                   required

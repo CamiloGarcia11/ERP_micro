@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { memoryDb } from '../../db/memory-db';
 import { StoredOrder } from '../../types';
+import { eventBus } from '../../events/event-bus';
 
 export const getOrders = (_req: Request, res: Response) => {
   return res.json({
@@ -24,6 +25,27 @@ export const createOrder = (req: Request, res: Response) => {
         instance: '/api/sales/orders',
         timestamp: new Date().toISOString(),
       });
+    }
+
+    let customerId = body.customerId;
+    let customerName = body.customerName;
+    let customerDocument = body.customerDocument;
+
+    // Vincular con el módulo CRM si existe el cliente
+    if (customerId) {
+      const found = memoryDb.customers.find((c) => c.id === customerId);
+      if (found) {
+        customerName = found.name;
+        customerDocument = found.document;
+      }
+    } else if (customerDocument) {
+      const found = memoryDb.customers.find(
+        (c) => c.document.toLowerCase() === customerDocument.trim().toLowerCase(),
+      );
+      if (found) {
+        customerId = found.id;
+        if (!customerName) customerName = found.name;
+      }
     }
 
     let subtotal = 0;
@@ -54,8 +76,9 @@ export const createOrder = (req: Request, res: Response) => {
     const newOrder: StoredOrder = {
       id: `ord-${Date.now()}`,
       orderNumber,
-      customerName: body.customerName || 'Consumidor Final',
-      customerDocument: body.customerDocument || '00000000',
+      customerId,
+      customerName: customerName || 'Consumidor Final',
+      customerDocument: customerDocument || '00000000',
       status: 'CONFIRMED',
       paymentMethod: body.paymentMethod || 'CASH',
       subtotal,
@@ -69,6 +92,21 @@ export const createOrder = (req: Request, res: Response) => {
     };
 
     memoryDb.orders.unshift(newOrder);
+
+    // 1. Registro del evento SÍNCRONO (La petición REST finalizada con éxito)
+    eventBus.addEvent({
+      type: 'SYNC',
+      channel: 'HTTP / REST (Bloqueante)',
+      name: `POST /api/sales/orders -> ${newOrder.orderNumber}`,
+      source: 'Frontend Client (:3000)',
+      target: 'Sales Controller (:4000)',
+      details: `Emisión síncrona exitosa de orden por $${newOrder.total}. El cliente recibe HTTP 201 Created.`,
+      latencyMs: 16,
+      status: 'SUCCESS',
+    });
+
+    // 2. Emisión de eventos ASÍNCRONOS en segundo plano a través del EventBus
+    eventBus.emit('order.created', newOrder);
 
     return res.status(201).json({
       success: true,

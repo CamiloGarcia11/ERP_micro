@@ -13,7 +13,7 @@ Sistema ERP modular empresarial desacoplado en una arquitectura de **Microservic
 ERP_micro/
 ├── backend/                  # 🚀 Microservicio Backend (Express + TypeScript)
 │   ├── src/
-│   │   ├── modules/          # Auth, Inventory, Sales, Analytics
+│   │   ├── modules/          # Auth, Inventory, Sales, CRM, Analytics
 │   │   ├── db/               # In-Memory Database / Data Store
 │   │   ├── types/            # DTOs y contratos
 │   │   └── index.ts          # Servidor Express & Middleware RFC 7807
@@ -22,7 +22,7 @@ ERP_micro/
 │
 ├── frontend/                 # 💻 Aplicación Frontend (Next.js 14)
 │   ├── src/
-│   │   ├── app/              # Dashboard, Inventario, Ventas, Analítica, Login
+│   │   ├── app/              # Dashboard, Inventario, Ventas, CRM, Analítica, Login
 │   │   ├── components/       # Componentes UI
 │   │   ├── lib/              # API Client (conecta al microservicio backend)
 │   │   └── store/            # Zustand Store de autenticación
@@ -103,8 +103,15 @@ npm run dev:frontend
 | `GET` | `/api/inventory/products` | Catálogo de productos (filtros: `?search=...&category=...`) |
 | `POST` | `/api/inventory/products` | Registro de nuevos productos con validación de SKU duplicado |
 | `GET` | `/api/sales/orders` | Historial de órdenes de venta emitidas |
-| `POST` | `/api/sales/orders` | Creación de orden con cálculo de IGV (18%) y **descuento automático de existencias en almacén** |
-| `GET` | `/api/analytics/summary` | KPIs financieros (ingresos totales, ticket promedio, unidades vendidas, ventas recientes) |
+| `POST` | `/api/sales/orders` | Creación de orden con cálculo de IGV (18%), vinculación a CRM y **descuento automático de existencias en almacén** |
+| `GET` | `/api/crm/customers` | Directorio de clientes con métricas de compra (filtros: `?search=...&type=COMPANY\|INDIVIDUAL&status=ACTIVE\|LEAD\|INACTIVE`) |
+| `GET` | `/api/crm/customers/:id` | Detalle del cliente e historial de órdenes asociadas |
+| `POST` | `/api/crm/customers` | Registro de nuevo cliente con validación de documento (RUC/DNI) duplicado |
+| `PUT` | `/api/crm/customers/:id` | Actualización de datos comerciales del cliente |
+| `DELETE` | `/api/crm/customers/:id` | Desactivación lógica del cliente en CRM |
+| `GET` | `/api/analytics/summary` | KPIs financieros multi-periodo (`?period=daily\|weekly\|monthly\|quarterly`), gráfico de distribución por intervalos temporales y top productos |
+| `GET` | `/api/events` | Monitor de eventos del sistema (trazas síncronas HTTP/REST y asíncronas Pub/Sub) |
+| `POST` | `/api/events/simulate` | Simulación y disparo de flujo síncrono (orden) + 3 eventos asíncronos en cascada |
 
 ---
 
@@ -114,4 +121,4 @@ npm run dev:frontend
 | :--- | :--- | :--- | :--- |
 | **Admin** | `admin@erp.local` | `Admin123!` | Administrador General |
 | **Contador** | `contador@erp.local` | `Accountant123!` | Finanzas y Analítica |
-| **Operador** | `operador@erp.local` | `Operator123!` | Almacén y Ventas |
+| **Operador** | `operador@erp.local` | `Operator123!` | Almacén, Ventas y CRM |
